@@ -9,8 +9,12 @@
 // for details.
 
 #include <utility>
+#include <iostream>
+#include <cstdio>
 
 #include "base/symbolic_execution.h"
+
+using namespace std;
 
 namespace crest {
 

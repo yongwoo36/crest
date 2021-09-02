@@ -19,7 +19,7 @@ typedef int id_t;
 typedef int branch_id_t;
 typedef unsigned int function_id_t;
 typedef unsigned int var_t;
-typedef long long int value_t;
+typedef double value_t;
 typedef unsigned long int addr_t;
 
 
@@ -51,7 +51,8 @@ enum type_t { U_CHAR = 0,       CHAR = 1,
 	      U_SHORT = 2,      SHORT = 3,
 	      U_INT = 4,        INT = 5,
 	      U_LONG = 6,       LONG = 7,
-	      U_LONG_LONG = 8,  LONG_LONG = 9 };
+	      U_LONG_LONG = 8,  LONG_LONG = 9,
+		  FLOAT = 10,		DOUBLE = 11 };
 }
 using types::type_t;
 

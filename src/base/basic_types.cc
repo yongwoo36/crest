@@ -32,6 +32,8 @@ const char* kMinValueStr[] = {
   "-2147483648",
   "0",
   "-9223372036854775808",
+  "-3.402823466e+38",  // float
+  "-1.7976931348623158e+308"   // double
 };
 
 const char* kMaxValueStr[] = {
@@ -45,6 +47,8 @@ const char* kMaxValueStr[] = {
   "2147483647",
   "18446744073709551615",
   "9223372036854775807",
+  "3.402823466e+38",  // float
+  "1.7976931348623158e+308"   // double
 };
 
 value_t CastTo(value_t val, type_t type) {
@@ -60,6 +64,11 @@ value_t CastTo(value_t val, type_t type) {
 
   case types::U_LONG_LONG:
   case types::LONG_LONG:
+
+  // floating point 
+  case types::FLOAT:    return static_cast<float>(val);
+  case types::DOUBLE:   return static_cast<double>(val);
+
     // Cast would do nothing in these cases.
     return val;
   }
@@ -80,6 +89,8 @@ const value_t kMinValue[] = {
   numeric_limits<long>::min(),
   numeric_limits<unsigned long long>::min(),
   numeric_limits<long long>::min(),
+  numeric_limits<float>::min(),
+  numeric_limits<double>::min()
 };
 
 const value_t kMaxValue[] = {
@@ -93,6 +104,8 @@ const value_t kMaxValue[] = {
   numeric_limits<long>::max(),
   numeric_limits<unsigned long long>::max(),
   numeric_limits<long long>::max(),
+  numeric_limits<float>::max(),
+  numeric_limits<double>::max()
 };
 
 const size_t kByteSize[] = {
@@ -100,7 +113,8 @@ const size_t kByteSize[] = {
   sizeof(unsigned short),      sizeof(short),
   sizeof(unsigned int),        sizeof(int),
   sizeof(unsigned long),       sizeof(long),
-  sizeof(unsigned long long),  sizeof(long long)
+  sizeof(unsigned long long),  sizeof(long long),
+  sizeof(float),                sizeof(double)
 };
 
 }  // namespace crest

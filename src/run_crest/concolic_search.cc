@@ -150,7 +150,7 @@ void Search::WriteInputToFileOrDie(const string& file,
   }
 
   for (size_t i = 0; i < input.size(); i++) {
-    fprintf(f, "%lld\n", input[i]);
+    fprintf(f, "%lf\n", input[i]);
   }
 
   fclose(f);

@@ -11,6 +11,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include "base/symbolic_expression.h"
+#include <iostream>
+
+using namespace std;
 
 namespace crest {
 
@@ -57,11 +60,11 @@ bool SymbolicExpr::DependsOn(const map<var_t,type_t>& vars) const {
 
 void SymbolicExpr::AppendToString(string* s) const {
   char buff[32];
-  sprintf(buff, "(+ %lld", const_);
+  sprintf(buff, "(+ %lf", const_);
   s->append(buff);
 
   for (ConstIt i = coeff_.begin(); i != coeff_.end(); ++i) {
-    sprintf(buff, " (* %lld x%u)", i->second, i->first);
+    sprintf(buff, " (* %lf x%u)", i->second, i->first);
     s->append(buff);
   }
 

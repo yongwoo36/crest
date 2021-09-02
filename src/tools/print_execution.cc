@@ -24,11 +24,13 @@ int main(void) {
   in.close();
 
   // Print input.
+  cout << "print input" << endl;
   for (size_t i = 0; i < ex.inputs().size(); i++) {
     cout << "(= x" << i << " " << ex.inputs()[i] << ")\n";
   }
   cout << endl;
 
+  cout << "pirnt constraints" << endl;
   { // Print the constraints.
     string tmp;
     for (size_t i = 0; i < ex.path().constraints().size(); i++) {
@@ -39,6 +41,7 @@ int main(void) {
     cout << endl;
   }
 
+  cout << "print branches" << endl;
   // Print the branches.
   for (size_t i = 0; i < ex.path().branches().size(); i++) {
     cout << ex.path().branches()[i] << "\n";

@@ -8,6 +8,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See LICENSE
 // for details.
 
+#include <iostream>
 #include <algorithm>
 #include <assert.h>
 #include <stdio.h>
@@ -16,6 +17,8 @@
 
 #include "base/symbolic_interpreter.h"
 #include "base/yices_solver.h"
+
+using namespace std;
 
 using std::make_pair;
 using std::swap;
@@ -181,7 +184,7 @@ void SymbolicInterpreter::ApplyBinaryOp(id_t id, binary_op_t op, value_t value) 
     case ops::SHIFT_L:
       if (a.expr != NULL) {
         // Convert to multiplication by a (concrete) constant.
-        *a.expr *= (1 << b.concrete);
+        *a.expr *= (1 << (long long int)b.concrete);
       }
       delete b.expr;
       break;
@@ -219,7 +222,7 @@ void SymbolicInterpreter::ApplyCompareOp(id_t id, compare_op_t op, value_t value
   assert(stack_.size() >= 2);
   StackElem& a = *(stack_.rbegin()+1);
   StackElem& b = stack_.back();
-
+  
   if (a.expr || b.expr) {
     // Symbolically compute "a -= b".
     if (a.expr == NULL) {

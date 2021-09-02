@@ -8,6 +8,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See LICENSE
 // for details.
 
+#include <iostream>
 #include <assert.h>
 #include <limits>
 #include <queue>
@@ -19,6 +20,7 @@
 
 #include "base/yices_solver.h"
 
+using namespace std;
 using std::make_pair;
 using std::numeric_limits;
 using std::queue;
@@ -30,8 +32,8 @@ typedef vector<const SymbolicPred*>::const_iterator PredIt;
 
 
 yices_expr makeYicesNum(yices_context ctx, value_t val) {
-  if ((val >= numeric_limits<int>::min()) && (val <= numeric_limits<int>::max())) {
-    return yices_mk_num(ctx, static_cast<int>(val));
+  if ((val >= numeric_limits<double>::min()) && (val <= numeric_limits<double>::max())) {
+    return yices_mk_num(ctx, static_cast<double>(val));
   } else {
     // Send the constant term to Yices as a string, to correctly handle constant terms outside
     // the range of integers.
@@ -39,7 +41,7 @@ yices_expr makeYicesNum(yices_context ctx, value_t val) {
     // NOTE: This is not correct for unsigned long long values that are larger than the max
     // long long int value.
     char buff[32];
-    snprintf(buff, 32, "%lld", val);
+    snprintf(buff, 32, "%lf", val);
     return yices_mk_num_from_string(ctx, buff);
   }
 }
@@ -49,6 +51,7 @@ bool YicesSolver::IncrementalSolve(const vector<value_t>& old_soln,
 				   const map<var_t,type_t>& vars,
 				   const vector<const SymbolicPred*>& constraints,
 				   map<var_t,value_t>* soln) {
+
   set<var_t> tmp;
   typedef set<var_t>::const_iterator VarIt;
 
@@ -123,15 +126,18 @@ bool YicesSolver::Solve(const map<var_t,type_t>& vars,
   assert(ctx);
 
   // Type limits.
-  vector<yices_expr> min_expr(types::LONG_LONG+1);
-  vector<yices_expr> max_expr(types::LONG_LONG+1);
-  for (int i = types::U_CHAR; i <= types::LONG_LONG; i++) {
+  vector<yices_expr> min_expr(types::DOUBLE+1);
+  vector<yices_expr> max_expr(types::DOUBLE+1);
+  for (int i = types::U_CHAR; i <= types::DOUBLE; i++) {
     min_expr[i] = yices_mk_num_from_string(ctx, const_cast<char*>(kMinValueStr[i]));
     max_expr[i] = yices_mk_num_from_string(ctx, const_cast<char*>(kMaxValueStr[i]));
     assert(min_expr[i]);
     assert(max_expr[i]);
   }
 
+// This is original code. 
+// I modify this part to using double type not int type.
+/* 
   char int_ty_name[] = "int";
   // fprintf(stderr, "yices_mk_mk_type(ctx, int_ty_name)\n");
   yices_type int_ty = yices_mk_type(ctx, int_ty_name);
@@ -154,6 +160,30 @@ bool YicesSolver::Solve(const map<var_t,type_t>& vars,
     // fprintf(stderr, "yices_assert(ctx, yices_mk_le(ctx, x_expr[i->first], max_expr[i->second]))\n");
     yices_assert(ctx, yices_mk_le(ctx, x_expr[i->first], max_expr[i->second]));
   }
+*/
+
+  char double_ty_name[] = "double";
+  // fprintf(stderr, "yices_mk_mk_type(ctx, int_ty_name)\n");
+  yices_type double_ty = yices_mk_type(ctx, double_ty_name);
+  assert(double_ty);
+
+  // Variable declarations.
+  map<var_t,yices_var_decl> x_decl;
+  map<var_t,yices_expr> x_expr;
+  for (VarIt i = vars.begin(); i != vars.end(); ++i) {
+    char buff[32];
+    snprintf(buff, sizeof(buff), "x%d", i->first);
+    // fprintf(stderr, "yices_mk_var_decl(ctx, buff, int_ty)\n");
+    x_decl[i->first] = yices_mk_var_decl(ctx, buff, double_ty);
+    // fprintf(stderr, "yices_mk_var_from_decl(ctx, x_decl[i->first])\n");
+    x_expr[i->first] = yices_mk_var_from_decl(ctx, x_decl[i->first]);
+    assert(x_decl[i->first]);
+    assert(x_expr[i->first]);
+    // fprintf(stderr, "yices_assert(ctx, yices_mk_ge(ctx, x_expr[i->first], min_expr[i->second]))\n");
+    yices_assert(ctx, yices_mk_ge(ctx, x_expr[i->first], min_expr[i->second]));
+    // fprintf(stderr, "yices_assert(ctx, yices_mk_le(ctx, x_expr[i->first], max_expr[i->second]))\n");
+    yices_assert(ctx, yices_mk_le(ctx, x_expr[i->first], max_expr[i->second]));
+  }
 
   // fprintf(stderr, "yices_mk_num(ctx, 0)\n");
   yices_expr zero = yices_mk_num(ctx, 0);
@@ -163,6 +193,8 @@ bool YicesSolver::Solve(const map<var_t,type_t>& vars,
     vector<yices_expr> terms;
     for (PredIt i = constraints.begin(); i != constraints.end(); ++i) {
       const SymbolicExpr& se = (*i)->expr();
+      string tmp;
+      se.AppendToString(&tmp);
       terms.clear();
       terms.push_back(makeYicesNum(ctx, se.const_term()));
       for (SymbolicExpr::TermIt j = se.terms().begin(); j != se.terms().end(); ++j) {

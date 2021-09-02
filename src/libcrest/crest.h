@@ -122,7 +122,7 @@
 #define __CREST_ID int
 #define __CREST_BRANCH_ID int
 #define __CREST_FUNCTION_ID unsigned int
-#define __CREST_VALUE long long int
+#define __CREST_VALUE double
 #define __CREST_ADDR unsigned long int
 
 #define __CREST_OP int
@@ -193,6 +193,8 @@ EXTERN void __CrestHandleReturn(__CREST_ID, __CREST_VALUE) __SKIP;
 #define CREST_char(x) __CrestChar(&x)
 #define CREST_short(x) __CrestShort(&x)
 #define CREST_int(x) __CrestInt(&x)
+#define CREST_float(x) __CrestFloat(&x)
+#define CREST_double(x) __CrestDouble(&x)
 
 EXTERN void __CrestUChar(unsigned char* x) __SKIP;
 EXTERN void __CrestUShort(unsigned short* x) __SKIP;
@@ -200,5 +202,7 @@ EXTERN void __CrestUInt(unsigned int* x) __SKIP;
 EXTERN void __CrestChar(char* x) __SKIP;
 EXTERN void __CrestShort(short* x) __SKIP;
 EXTERN void __CrestInt(int* x) __SKIP;
+EXTERN void __CrestFloat(float *x) __SKIP;
+EXTERN void __CrestDouble(double *x) __SKIP;
 
 #endif  /* LIBCREST_CREST_H__ */

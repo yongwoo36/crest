@@ -8,6 +8,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See LICENSE
 // for details.
 
+#include <iostream>
 #include <assert.h>
 #include <fstream>
 #include <string>
@@ -17,8 +18,11 @@
 #include "base/symbolic_interpreter.h"
 #include "libcrest/crest.h"
 
+
+
 using std::vector;
 using namespace crest;
+using namespace std;
 
 // The symbolic interpreter. */
 static SymbolicInterpreter* SI;
@@ -188,4 +192,14 @@ void __CrestShort(short* x) {
 void __CrestInt(int* x) {
   pre_symbolic = 0;
   *x = (int)SI->NewInput(types::INT, (addr_t)x);
+}
+
+void __CrestFloat(float* x) {
+  pre_symbolic = 0;
+  *x = (float)SI->NewInput(types::FLOAT, (addr_t)x);
+}
+
+void __CrestDouble(double* x) {
+  pre_symbolic = 0;
+  *x = (double)SI->NewInput(types::DOUBLE, (addr_t)x);
 }
