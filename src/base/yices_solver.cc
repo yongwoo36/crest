@@ -16,7 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <utility>
-#include <yices_c.h>
+
+#include <yices_c.h>  // version1
+// #include <yices.h>    // version2
 
 #include "base/yices_solver.h"
 
@@ -224,9 +226,9 @@ bool YicesSolver::Solve(const map<var_t,type_t>& vars,
     soln->clear();
     yices_model model = yices_get_model(ctx);
     for (VarIt i = vars.begin(); i != vars.end(); ++i) {
-      long val;
-      assert(yices_get_int_value(model, x_decl[i->first], &val));
-      soln->insert(make_pair(i->first, val));
+      long num, den;
+      assert(yices_get_arith_value(model, x_decl[i->first], &num, &den));
+      soln->insert(make_pair(i->first, (double)(num/den)));
     }
   }
 
