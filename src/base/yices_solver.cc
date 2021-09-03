@@ -17,8 +17,8 @@
 #include <stdlib.h>
 #include <utility>
 
-#include <yices_c.h>  // version1
-// #include <yices.h>    // version2
+// #include <yices_c.h>   // version1
+#include "yices.h"        // version2
 
 #include "base/yices_solver.h"
 
@@ -28,24 +28,37 @@ using std::numeric_limits;
 using std::queue;
 using std::set;
 
+static void print_term(term_t term) {
+  char *s; 
+
+  s = yices_term_to_string(term, 80, 20, 0);
+  if (s == NULL) {
+    // An error occurred
+    s = yices_error_string();
+    fprintf(stderr, "Error in print_term: %s\n", s);
+    yices_free_string(s);
+    exit(1);
+  }
+  // print the string then free it
+  printf("%s\n", s);
+  yices_free_string(s);
+}
+
+
 namespace crest {
 
 typedef vector<const SymbolicPred*>::const_iterator PredIt;
 
 
-yices_expr makeYicesNum(yices_context ctx, value_t val) {
-  if ((val >= numeric_limits<double>::min()) && (val <= numeric_limits<double>::max())) {
-    return yices_mk_num(ctx, static_cast<double>(val));
-  } else {
-    // Send the constant term to Yices as a string, to correctly handle constant terms outside
-    // the range of integers.
-    //
-    // NOTE: This is not correct for unsigned long long values that are larger than the max
-    // long long int value.
-    char buff[32];
-    snprintf(buff, 32, "%lf", val);
-    return yices_mk_num_from_string(ctx, buff);
-  }
+term_t makeYicesNum(value_t val) {
+  // Send the constant term to Yices as a string, to correctly handle constant terms outside
+  // the range of integers.
+  //
+  // NOTE: This is not correct for unsigned long long values that are larger than the max
+  // long long int value.
+  char buff[32];
+  snprintf(buff, 32, "%lf", val);
+  return yices_parse_float(buff);
 }
 
 
@@ -121,120 +134,98 @@ bool YicesSolver::Solve(const map<var_t,type_t>& vars,
 			const vector<const SymbolicPred*>& constraints,
 			map<var_t,value_t>* soln) {
 
+  yices_init();
   typedef map<var_t,type_t>::const_iterator VarIt;
 
-  // yices_enable_log_file("yices_log");
-  yices_context ctx = yices_mk_context();
-  assert(ctx);
-
   // Type limits.
-  vector<yices_expr> min_expr(types::DOUBLE+1);
-  vector<yices_expr> max_expr(types::DOUBLE+1);
+  vector<term_t> min_expr(types::DOUBLE+1);
+  vector<term_t> max_expr(types::DOUBLE+1);
   for (int i = types::U_CHAR; i <= types::DOUBLE; i++) {
-    min_expr[i] = yices_mk_num_from_string(ctx, const_cast<char*>(kMinValueStr[i]));
-    max_expr[i] = yices_mk_num_from_string(ctx, const_cast<char*>(kMaxValueStr[i]));
+    if (i == types::FLOAT || i == types::DOUBLE) {
+      min_expr[i] = yices_parse_float(const_cast<char*>(kMinValueStr[i]));
+      max_expr[i] = yices_parse_float(const_cast<char*>(kMaxValueStr[i]));
+    }
+    else {
+      if (i%2) {
+        min_expr[i] = yices_int64(kMinValue[i]);
+        max_expr[i] = yices_int64(kMaxValue[i]);
+      }
+      else {
+        min_expr[i] = yices_int64(kMinValue[i]);
+        max_expr[i] = yices_int64(kMaxValue[i]);
+      }
+    }
     assert(min_expr[i]);
     assert(max_expr[i]);
   }
-
-// This is original code. 
-// I modify this part to using double type not int type.
-/* 
-  char int_ty_name[] = "int";
-  // fprintf(stderr, "yices_mk_mk_type(ctx, int_ty_name)\n");
-  yices_type int_ty = yices_mk_type(ctx, int_ty_name);
-  assert(int_ty);
-
+  
   // Variable declarations.
-  map<var_t,yices_var_decl> x_decl;
-  map<var_t,yices_expr> x_expr;
+  term_t f;
+  vector<term_t> terms;
+  map<var_t,term_t> x_decl;
   for (VarIt i = vars.begin(); i != vars.end(); ++i) {
     char buff[32];
     snprintf(buff, sizeof(buff), "x%d", i->first);
     // fprintf(stderr, "yices_mk_var_decl(ctx, buff, int_ty)\n");
-    x_decl[i->first] = yices_mk_var_decl(ctx, buff, int_ty);
-    // fprintf(stderr, "yices_mk_var_from_decl(ctx, x_decl[i->first])\n");
-    x_expr[i->first] = yices_mk_var_from_decl(ctx, x_decl[i->first]);
+    x_decl[i->first] = yices_new_uninterpreted_term(yices_real_type());
+    yices_set_term_name(x_decl[i->first], buff);
+    
+    // terms.push_back(x_decl[i->first]);
     assert(x_decl[i->first]);
-    assert(x_expr[i->first]);
+
     // fprintf(stderr, "yices_assert(ctx, yices_mk_ge(ctx, x_expr[i->first], min_expr[i->second]))\n");
-    yices_assert(ctx, yices_mk_ge(ctx, x_expr[i->first], min_expr[i->second]));
-    // fprintf(stderr, "yices_assert(ctx, yices_mk_le(ctx, x_expr[i->first], max_expr[i->second]))\n");
-    yices_assert(ctx, yices_mk_le(ctx, x_expr[i->first], max_expr[i->second]));
+    terms.push_back(yices_arith_geq_atom(x_decl[i->first], min_expr[i->second]));
+    terms.push_back(yices_arith_leq_atom(x_decl[i->first], max_expr[i->second]));
   }
-*/
-
-  char double_ty_name[] = "double";
-  // fprintf(stderr, "yices_mk_mk_type(ctx, int_ty_name)\n");
-  yices_type double_ty = yices_mk_type(ctx, double_ty_name);
-  assert(double_ty);
-
-  // Variable declarations.
-  map<var_t,yices_var_decl> x_decl;
-  map<var_t,yices_expr> x_expr;
-  for (VarIt i = vars.begin(); i != vars.end(); ++i) {
-    char buff[32];
-    snprintf(buff, sizeof(buff), "x%d", i->first);
-    // fprintf(stderr, "yices_mk_var_decl(ctx, buff, int_ty)\n");
-    x_decl[i->first] = yices_mk_var_decl(ctx, buff, double_ty);
-    // fprintf(stderr, "yices_mk_var_from_decl(ctx, x_decl[i->first])\n");
-    x_expr[i->first] = yices_mk_var_from_decl(ctx, x_decl[i->first]);
-    assert(x_decl[i->first]);
-    assert(x_expr[i->first]);
-    // fprintf(stderr, "yices_assert(ctx, yices_mk_ge(ctx, x_expr[i->first], min_expr[i->second]))\n");
-    yices_assert(ctx, yices_mk_ge(ctx, x_expr[i->first], min_expr[i->second]));
-    // fprintf(stderr, "yices_assert(ctx, yices_mk_le(ctx, x_expr[i->first], max_expr[i->second]))\n");
-    yices_assert(ctx, yices_mk_le(ctx, x_expr[i->first], max_expr[i->second]));
-  }
-
-  // fprintf(stderr, "yices_mk_num(ctx, 0)\n");
-  yices_expr zero = yices_mk_num(ctx, 0);
-  assert(zero);
 
   { // Constraints.
-    vector<yices_expr> terms;
+    vector<term_t> term;
     for (PredIt i = constraints.begin(); i != constraints.end(); ++i) {
       const SymbolicExpr& se = (*i)->expr();
-      string tmp;
-      se.AppendToString(&tmp);
-      terms.clear();
-      terms.push_back(makeYicesNum(ctx, se.const_term()));
+      term.clear();
+      term.push_back(makeYicesNum(se.const_term()));
       for (SymbolicExpr::TermIt j = se.terms().begin(); j != se.terms().end(); ++j) {
-	yices_expr prod[2] = { x_expr[j->first], makeYicesNum(ctx, j->second) };
-	terms.push_back(yices_mk_mul(ctx, prod, 2));
+        term.push_back(yices_mul(x_decl[j->first], makeYicesNum(j->second)));
       }
-      yices_expr e = yices_mk_sum(ctx, &terms.front(), terms.size());
-
-      yices_expr pred;
+      term_t e = yices_sum(term.size(), term.data());
+      term_t pred;
       switch((*i)->op()) {
-      case ops::EQ:  pred = yices_mk_eq(ctx, e, zero); break;
-      case ops::NEQ: pred = yices_mk_diseq(ctx, e, zero); break;
-      case ops::GT:  pred = yices_mk_gt(ctx, e, zero); break;
-      case ops::LE:  pred = yices_mk_le(ctx, e, zero); break;
-      case ops::LT:  pred = yices_mk_lt(ctx, e, zero); break;
-      case ops::GE:  pred = yices_mk_ge(ctx, e, zero); break;
+      case ops::EQ:  pred = yices_arith_eq0_atom(e); break;
+      case ops::NEQ: pred = yices_arith_neq0_atom(e); break;
+      case ops::GT:  pred = yices_arith_gt0_atom(e); break;
+      case ops::LE:  pred = yices_arith_leq0_atom(e); break;
+      case ops::LT:  pred = yices_arith_lt0_atom(e); break;
+      case ops::GE:  pred = yices_arith_geq0_atom(e); break;
       default:
-	fprintf(stderr, "Unknown comparison operator: %d\n", (*i)->op());
-	exit(1);
+        fprintf(stderr, "Unknown comparison operator: %d\n", (*i)->op());
+        exit(1);
       }
-      yices_assert(ctx, pred);
+      terms.push_back(pred);
     }
   }
+  // cout << "term size: " << terms.size() << endl;
+  // for (int i=0; i<terms.size(); i++) {
+  //   print_term(terms[i]);
+  // }
 
-  bool success = (yices_check(ctx) == l_true);
-  if (success) {
+  f = yices_and(terms.size(), terms.data());
+  // print_term(f);
+
+  model_t *model;
+  smt_status_t sat = yices_check_formula(f, "QF_LRA", &model, NULL);
+  if (sat == STATUS_SAT) {
     soln->clear();
-    yices_model model = yices_get_model(ctx);
     for (VarIt i = vars.begin(); i != vars.end(); ++i) {
-      long num, den;
-      assert(yices_get_arith_value(model, x_decl[i->first], &num, &den));
-      soln->insert(make_pair(i->first, (double)(num/den)));
+      double val;
+      yices_get_double_value(model, x_decl[i->first], &val);
+      soln->insert(make_pair(i->first, val));
     }
+    yices_free_model(model);
   }
 
-  yices_del_context(ctx);
-  return success;
-}
+  yices_exit();
 
+  return sat == STATUS_SAT;
+}
 
 }  // namespace crest
