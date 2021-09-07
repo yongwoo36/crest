@@ -184,8 +184,9 @@ let shouldSkipFunction f = hasAttribute "crest_skip" f.vattr
 let prependToBlock (is : instr list) (b : block) =
   b.bstmts <- mkStmt (Instr is) :: b.bstmts
 
-let isSymbolicType ty = isIntegralType (unrollType ty)
-
+(* change crest-float *)
+(* let isSymbolicType ty = isIntegralType (unrollType ty) *)
+let isSymbolicType ty = isArithmeticType (unrollType ty)
 
 (* These definitions must match those in "libcrest/crest.h". *)
 let idType   = intType
